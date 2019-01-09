@@ -5,7 +5,8 @@ authors = ["Matthew Boatman <matthew.boatman@hautelook.com>"]
 edition = "2018"
 
 [dependencies]
-regex = "1"
+regex = "1.1"
 maxminddb = "0.12.0"
 bigdecimal = "0.0.14"
 ndarray = "0.12.1"
+lazy_static = "1.2"

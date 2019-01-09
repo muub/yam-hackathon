@@ -46,6 +46,9 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
 
     let re = Regex::new(r"X-Forwarded-For=(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})").unwrap();
 
+    let reader = maxminddb::Reader::open_readfile("/usr/local/share/GeoIP/GeoLite2-City.mmdb").unwrap();
+
+
     // let re = Regex::new(r"X-Forwarded-For=\d*").unwrap();
 
     // lookup("67.181.158.177");
@@ -67,7 +70,7 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
             let ip: Vec<&str> = xforward_str.split("=").collect();
 
             // println!("IP Address: {:?}", &ip[1]);
-            let lat_long_opt = lookup(&ip[1]);
+            let lat_long_opt = lookup(&ip[1], &reader);
 
             match lat_long_opt {
                 Some(lat_long) => {
@@ -186,8 +189,8 @@ impl Config {
 }
 
 
-fn lookup<'a>(ip_query: &str) -> Option<maxminddb::geoip2::model::Location> {
-   let reader = maxminddb::Reader::open_readfile("/usr/local/share/GeoIP/GeoLite2-City.mmdb").unwrap();
+fn lookup<'a>(ip_query: &str, reader: &maxminddb::Reader<Vec<u8>>) -> Option<maxminddb::geoip2::model::Location> {
+   // let reader = maxminddb::Reader::open_readfile("/usr/local/share/GeoIP/GeoLite2-City.mmdb").unwrap();
    // let ip: IpAddr = FromStr::from_str("89.160.20.128").unwrap();
    // let ip: IpAddr = FromStr::from_str("67.181.158.177").unwrap();
 
