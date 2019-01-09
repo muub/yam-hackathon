@@ -35,11 +35,11 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
     };
 
 
-    let results = if config.case_sensitive {
-        search(&config.query, &contents)
-    } else {
-        search_case_insensitive(&config.query, &contents)
-    };
+    // let results = if config.case_sensitive {
+    //     search(&config.query, &contents)
+    // } else {
+    //     search_case_insensitive(&config.query, &contents)
+    // };
 
     // let re = Regex::new(r"^\d{4}-\d{2}-\d{2}$").unwrap();
     // let re = Regex::new(r"/X-Forwarded-For.*\b=(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/gm").unwrap();
@@ -59,14 +59,14 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
     let mut lat_long_hash: HashMap<String, u32> = HashMap::new();
 
     // println!("With text: \n{}", contents);
-    for line in results {
+    for line in contents.lines() {
         // println!("{}", line)
 
         for cap in re.captures_iter(line) {
             let xforward_str = &cap[0];
             let ip: Vec<&str> = xforward_str.split("=").collect();
 
-            println!("IP Address: {:?}", &ip[1]);
+            // println!("IP Address: {:?}", &ip[1]);
             let lat_long_opt = lookup(&ip[1]);
 
             match lat_long_opt {
@@ -99,7 +99,7 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
                     let mut count = lat_long_hash.entry(temp_lat_long).or_insert(0);
                      *count += 1;
 
-                    println!("{:?}, Latitude: {}, Longitude: {}, Count: {}", lat_long, rounded_lat, rounded_long, count)
+                    // println!("{:?}, Latitude: {}, Longitude: {}, Count: {}", lat_long, rounded_lat, rounded_long, count)
                 },
 
                 None => eprintln!("ip not found")
@@ -112,8 +112,9 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
 
     let mut output: String = String::new();
 
+    println!("Writing out file lat_long_counts.csv");
     for ln in &lat_long_hash {
-        output += &format!("{}|{}", ln.0, ln.1);
+        output += &format!("{}|{} \n", ln.0, ln.1.to_string());
     }
 
 
