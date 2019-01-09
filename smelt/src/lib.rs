@@ -3,16 +3,37 @@ use std::fs;
 use std::error::Error;
 use std::env;
 
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+
 use std::net::IpAddr;
 use std::str::FromStr;
 
+use std::io::prelude::*;
+use std::fs::File;
+use std::path::Path;
+
 use maxminddb::geoip2;
 use maxminddb::MaxMindDBError;
+
+use bigdecimal::{BigDecimal, FromPrimitive};
 
 use regex::Regex;
 
 pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
     let contents = fs::read_to_string(config.filename)?;
+
+    let path = Path::new("out/lat_long_counts.csv");
+    let display = path.display();
+
+    // Open a file in write-only mode, returns `io::Result<File>`
+    let mut file = match File::create(&path) {
+       Err(why) => panic!("couldn't create {}: {}",
+                          display,
+                          why.description()),
+       Ok(file) => file,
+    };
+
 
     let results = if config.case_sensitive {
         search(&config.query, &contents)
@@ -29,6 +50,14 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
 
     // lookup("67.181.158.177");
 
+    // let mut location_counter: Vec<LatLongLine> = Vec::new();
+    // let mut locations = &[5.02,-30.1, 5 ];
+
+    // let mut loc_map: HashMap<_, i64> = HashMap::new();
+    // let mut geo_thing: HashMap<Vec<f32>, i32> = HashMap::new();
+
+    let mut lat_long_hash: HashMap<String, u32> = HashMap::new();
+
     // println!("With text: \n{}", contents);
     for line in results {
         // println!("{}", line)
@@ -41,7 +70,38 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
             let lat_long_opt = lookup(&ip[1]);
 
             match lat_long_opt {
-                Some(lat_long) => println!("{:?}", lat_long ),
+                Some(lat_long) => {
+
+                    // let lat_dec = BigDecimal::from_f64(lat_long.latitude.unwrap());
+                    // let long_dec = BigDecimal::from_f64(lat_long.longitude.unwrap());
+                    // println!("{:?}, Latitude: {}, Longitude: {}", lat_long, lat_long.latitude.unwrap(), lat_long.longitude.unwrap())
+
+                    // let thing = lat_dec.unwrap_or_default(0);
+
+                    let rounded_lat: f64 = round_decimal(lat_long.latitude.unwrap());
+                    let rounded_long: f64 = round_decimal(lat_long.longitude.unwrap());
+
+                    // let temp_lat_long = LatLong{lat: rounded_lat.to_string(), long: rounded_long.to_string()};
+
+                    let temp_lat_long = format!("{}|{}", rounded_lat, rounded_long);
+
+                    // let count = match lat_long_hash.get(&temp_lat_long) {
+                    //     Some(c) => c + 1,
+                    //     None => 1;
+                    //
+                    // };
+                    //
+                    // lat_long_hash.entry(temp_lat_long).or_insert(count);
+
+                    // lat_long_hash.get(temp_lat_long).set(count + 1);
+
+
+                    let mut count = lat_long_hash.entry(temp_lat_long).or_insert(0);
+                     *count += 1;
+
+                    println!("{:?}, Latitude: {}, Longitude: {}, Count: {}", lat_long, rounded_lat, rounded_long, count)
+                },
+
                 None => eprintln!("ip not found")
             }
 
@@ -50,8 +110,58 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
 
     }
 
+    let mut output: String = String::new();
+
+    for ln in &lat_long_hash {
+        output += &format!("{}|{}", ln.0, ln.1);
+    }
+
+
+    // // Write the `LOREM_IPSUM` string to `file`, returns `io::Result<()>`
+    match file.write_all(output.as_bytes()) {
+       Err(why) => {
+           panic!("couldn't write to {}: {}", display,
+                                              why.description())
+       },
+       Ok(_) => println!("successfully wrote to {}", display),
+    }
+
+
+
     Ok(())
 }
+
+// #[derive(PartialEq, Eq, Hash)]
+struct LatLong {
+    lat: String,
+    long: String
+}
+
+// struct LatLong(str, f64);
+
+
+// impl Hash for LatLong {
+//     fn hash<H>(&self, state: &mut H) where H: Hasher {
+//         state.write_u16(4);
+//     }
+// }
+
+pub enum CoordData {
+    Longitude(f32),
+    Latitude(f32),
+    Total(i32)
+}
+
+pub struct LatLongLine {
+    pub lat: f32,
+    pub long: f32,
+    pub cnt: u32
+}
+
+fn round_decimal(x: f64) -> f64 {
+    return (x * 100.0).round() / 100.0
+}
+
 
 pub struct Config {
     pub query: String,

@@ -1,5 +1,8 @@
 extern crate maxminddb;
 extern crate regex;
+extern crate bigdecimal;
+#[macro_use(s)]
+extern crate ndarray;
 
 use std::env;
 use std::process;
