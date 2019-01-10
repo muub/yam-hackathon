@@ -4,7 +4,6 @@ use std::error::Error;
 use std::env;
 
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
 
 use std::net::IpAddr;
 use std::str::FromStr;
@@ -23,7 +22,9 @@ use regex::Regex;
 pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
     let contents = fs::read_to_string(config.filename)?;
 
-    let path = Path::new("out/lat_long_counts.csv");
+    // let path = Path::new("out/lat_long_counts_test.csv");
+    let path = Path::new("out/lat_long_counts_test_post_optimizaion.csv");
+
     let display = path.display();
 
     // Open a file in write-only mode, returns `io::Result<File>`
@@ -46,6 +47,9 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
 
     let re = Regex::new(r"X-Forwarded-For=(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})").unwrap();
 
+    //filters out 10 and 127
+    let filter_local_re = Regex::new(r"((10|127)\.\d{1,3}\.\d{1,3}\.\d{1,3})").unwrap();
+
     let reader = maxminddb::Reader::open_readfile("/usr/local/share/GeoIP/GeoLite2-City.mmdb").unwrap();
 
 
@@ -60,24 +64,38 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
     // let mut geo_thing: HashMap<Vec<f32>, i32> = HashMap::new();
 
     let mut lat_long_hash: HashMap<String, u32> = HashMap::new();
+    let mut ip_hash: HashMap<String, u32> = HashMap::new();
+
+
+    let mut lines_parse_count: u32 = 0;
+    let mut db_lookups_count: u32 = 0;
 
     // println!("With text: \n{}", contents);
     for line in contents.lines() {
         // println!("{}", line)
 
+        lines_parse_count += 1;
+
         for cap in re.captures_iter(line) {
             let xforward_str = &cap[0];
             let ip: Vec<&str> = xforward_str.split("=").collect();
 
+
+            let mut ip_count = ip_hash.entry(&ip[1]).or_insert(0)
+            *ip_count += 1
+
+
             // println!("IP Address: {:?}", &ip[1]);
             let lat_long_opt = lookup(&ip[1], &reader);
+
+            db_lookups_count += 1;
 
             match lat_long_opt {
                 Some(lat_long) => {
 
                     // let lat_dec = BigDecimal::from_f64(lat_long.latitude.unwrap());
                     // let long_dec = BigDecimal::from_f64(lat_long.longitude.unwrap());
-                    // println!("{:?}, Latitude: {}, Longitude: {}", lat_long, lat_long.latitude.unwrap(), lat_long.longitude.unwrap())
+                    // println!("{:?}, Latitude: {}, Longitude: {}", lat_long, lat_long.latitude.unwrap(), lat_long.longitude.unwrap());
 
                     // let thing = lat_dec.unwrap_or_default(0);
 
@@ -100,7 +118,7 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
 
 
                     let mut count = lat_long_hash.entry(temp_lat_long).or_insert(0);
-                     *count += 1;
+                    *count += 1;
 
                     // println!("{:?}, Latitude: {}, Longitude: {}, Count: {}", lat_long, rounded_lat, rounded_long, count)
                 },
@@ -131,15 +149,18 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
     }
 
 
+    println!("Lines Parsed {}", lines_parse_count.to_string());
+    println!("DB Lookups {}", db_lookups_count.to_string());
+
 
     Ok(())
 }
-
-// #[derive(PartialEq, Eq, Hash)]
-struct LatLong {
-    lat: String,
-    long: String
-}
+//
+// // #[derive(PartialEq, Eq, Hash)]
+// struct LatLong {
+//     lat: String,
+//     long: String
+// }
 
 // struct LatLong(str, f64);
 
