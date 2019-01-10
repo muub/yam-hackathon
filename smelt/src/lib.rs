@@ -79,54 +79,54 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
         for cap in re.captures_iter(line) {
             let xforward_str = &cap[0];
             let ip: Vec<&str> = xforward_str.split("=").collect();
+            let ip_string = ip[1].to_string();
+
+            if filter_local_re.is_match(&ip_string) {
+
+                 // println!("Skippping local {}", ip_string);
+
+                 continue;
+             }
 
 
-            let mut ip_count = ip_hash.entry(&ip[1]).or_insert(0)
-            *ip_count += 1
+            // let mut ip_count = ip_hash.entry(ip_string).or_insert(0);
+            // *ip_count += 1;
 
 
-            // println!("IP Address: {:?}", &ip[1]);
-            let lat_long_opt = lookup(&ip[1], &reader);
+            // if ip_hash.contains_key(&ip_string) {
+                // println!("IP Address: {:?}", &ip[1]);
+                let lat_long_opt = lookup(&ip[1], &reader);
 
-            db_lookups_count += 1;
+                db_lookups_count += 1;
 
-            match lat_long_opt {
-                Some(lat_long) => {
+                match lat_long_opt {
+                    Some(lat_long) => {
 
-                    // let lat_dec = BigDecimal::from_f64(lat_long.latitude.unwrap());
-                    // let long_dec = BigDecimal::from_f64(lat_long.longitude.unwrap());
-                    // println!("{:?}, Latitude: {}, Longitude: {}", lat_long, lat_long.latitude.unwrap(), lat_long.longitude.unwrap());
+                        // let lat_dec = BigDecimal::from_f64(lat_long.latitude.unwrap());
+                        // let long_dec = BigDecimal::from_f64(lat_long.longitude.unwrap());
+                        // println!("{:?}, Latitude: {}, Longitude: {}", lat_long, lat_long.latitude.unwrap(), lat_long.longitude.unwrap());
 
-                    // let thing = lat_dec.unwrap_or_default(0);
+                        // let thing = lat_dec.unwrap_or_default(0);
 
-                    let rounded_lat: f64 = round_decimal(lat_long.latitude.unwrap());
-                    let rounded_long: f64 = round_decimal(lat_long.longitude.unwrap());
+                        let rounded_lat: f64 = round_decimal(lat_long.latitude.unwrap());
+                        let rounded_long: f64 = round_decimal(lat_long.longitude.unwrap());
 
-                    // let temp_lat_long = LatLong{lat: rounded_lat.to_string(), long: rounded_long.to_string()};
+                        // let temp_lat_long = LatLong{lat: rounded_lat.to_string(), long: rounded_long.to_string()};
 
-                    let temp_lat_long = format!("{}|{}", rounded_lat, rounded_long);
+                        let temp_lat_long = format!("{}|{}", rounded_lat, rounded_long);
 
-                    // let count = match lat_long_hash.get(&temp_lat_long) {
-                    //     Some(c) => c + 1,
-                    //     None => 1;
-                    //
-                    // };
-                    //
-                    // lat_long_hash.entry(temp_lat_long).or_insert(count);
+                        let mut count = lat_long_hash.entry(temp_lat_long).or_insert(0);
+                        *count += 1;
 
-                    // lat_long_hash.get(temp_lat_long).set(count + 1);
+                        // println!("{:?}, Latitude: {}, Longitude: {}, Count: {}", lat_long, rounded_lat, rounded_long, count)
+                    },
 
-
-                    let mut count = lat_long_hash.entry(temp_lat_long).or_insert(0);
-                    *count += 1;
-
-                    // println!("{:?}, Latitude: {}, Longitude: {}, Count: {}", lat_long, rounded_lat, rounded_long, count)
-                },
-
-                None => eprintln!("ip not found")
+                    None => eprintln!("ip not found")
+                }
             }
+        // } else {
 
-        }
+        // }
         // println!("{}", loc);
 
     }
