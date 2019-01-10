@@ -1,7 +1,7 @@
 extern crate maxminddb;
 extern crate regex;
 extern crate bigdecimal;
-#[macro_use(s)]
+
 extern crate ndarray;
 
 use std::env;
@@ -21,7 +21,7 @@ fn main() {
 
     println!("{:?}", args);
 
-    println!("Searching for {}", config.query);
+    println!("Outputing to {}", config.outfile);
     println!("In file {}", config.filename);
 
     if let Err(e) = smelt::run(config) {

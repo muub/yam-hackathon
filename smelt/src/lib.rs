@@ -2,7 +2,7 @@
 use std::fs;
 use std::error::Error;
 use std::env;
-
+use std::time::SystemTime;
 use std::collections::HashMap;
 
 use std::net::IpAddr;
@@ -20,10 +20,16 @@ use bigdecimal::{BigDecimal, FromPrimitive};
 use regex::Regex;
 
 pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
+
+    let start_time = SystemTime::now();
+
     let contents = fs::read_to_string(config.filename)?;
 
+    let path = Path::new(&config.outfile);
+
     // let path = Path::new("out/lat_long_counts_test.csv");
-    let path = Path::new("out/lat_long_counts_test_post_optimizaion.csv");
+    // let path = Path::new("out/lat_long_counts_test_post_optimizaion.csv");
+    // let path = Path::new("out/lat_long_counts_cart_01_07.csv");
 
     let display = path.display();
 
@@ -35,13 +41,13 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
        Ok(file) => file,
     };
 
-
     // let results = if config.case_sensitive {
     //     search(&config.query, &contents)
     // } else {
     //     search_case_insensitive(&config.query, &contents)
     // };
 
+    // let re = Regex::new(r"X-Forwarded-For=\d*").unwrap();
     // let re = Regex::new(r"^\d{4}-\d{2}-\d{2}$").unwrap();
     // let re = Regex::new(r"/X-Forwarded-For.*\b=(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/gm").unwrap();
 
@@ -53,18 +59,11 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
     let reader = maxminddb::Reader::open_readfile("/usr/local/share/GeoIP/GeoLite2-City.mmdb").unwrap();
 
 
-    // let re = Regex::new(r"X-Forwarded-For=\d*").unwrap();
-
-    // lookup("67.181.158.177");
-
-    // let mut location_counter: Vec<LatLongLine> = Vec::new();
-    // let mut locations = &[5.02,-30.1, 5 ];
-
     // let mut loc_map: HashMap<_, i64> = HashMap::new();
     // let mut geo_thing: HashMap<Vec<f32>, i32> = HashMap::new();
 
     let mut lat_long_hash: HashMap<String, u32> = HashMap::new();
-    let mut ip_hash: HashMap<String, u32> = HashMap::new();
+    let mut ip_hash: HashMap<String, String> = HashMap::new();
 
 
     let mut lines_parse_count: u32 = 0;
@@ -82,20 +81,27 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
             let ip_string = ip[1].to_string();
 
             if filter_local_re.is_match(&ip_string) {
-
                  // println!("Skippping local {}", ip_string);
-
                  continue;
              }
 
 
-            // let mut ip_count = ip_hash.entry(ip_string).or_insert(0);
-            // *ip_count += 1;
+            if ip_hash.contains_key(&ip_string) {
+                // println!("Skipping db lookup");
+                let old_lat_long = ip_hash.get(&ip_string);
 
+                match old_lat_long {
+                    Some(lat_long) => {
+                        // println!("Old Lat Long {}", lat_long);
 
-            // if ip_hash.contains_key(&ip_string) {
-                // println!("IP Address: {:?}", &ip[1]);
-                let lat_long_opt = lookup(&ip[1], &reader);
+                        let mut count = lat_long_hash.entry(lat_long.to_string()).or_insert(0);
+                        *count += 1;
+                    }
+                    None => eprintln!("Lookup of previously seen ip failed")
+                }
+            } else {
+                // println!("IP Address: {:?}", ip_string);
+                let lat_long_opt = lookup(&ip_string, &reader);
 
                 db_lookups_count += 1;
 
@@ -106,27 +112,25 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
                         // let long_dec = BigDecimal::from_f64(lat_long.longitude.unwrap());
                         // println!("{:?}, Latitude: {}, Longitude: {}", lat_long, lat_long.latitude.unwrap(), lat_long.longitude.unwrap());
 
-                        // let thing = lat_dec.unwrap_or_default(0);
-
                         let rounded_lat: f64 = round_decimal(lat_long.latitude.unwrap());
                         let rounded_long: f64 = round_decimal(lat_long.longitude.unwrap());
 
                         // let temp_lat_long = LatLong{lat: rounded_lat.to_string(), long: rounded_long.to_string()};
 
-                        let temp_lat_long = format!("{}|{}", rounded_lat, rounded_long);
+                        let new_lat_long = format!("{}|{}", rounded_lat, rounded_long);
 
-                        let mut count = lat_long_hash.entry(temp_lat_long).or_insert(0);
+                        let mut count = lat_long_hash.entry(new_lat_long.to_string()).or_insert(0);
                         *count += 1;
+
+                        ip_hash.insert(ip_string, new_lat_long);
 
                         // println!("{:?}, Latitude: {}, Longitude: {}, Count: {}", lat_long, rounded_lat, rounded_long, count)
                     },
-
                     None => eprintln!("ip not found")
                 }
             }
-        // } else {
 
-        // }
+        }
         // println!("{}", loc);
 
     }
@@ -151,7 +155,8 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
 
     println!("Lines Parsed {}", lines_parse_count.to_string());
     println!("DB Lookups {}", db_lookups_count.to_string());
-
+    println!("Log file took {} seconds to parse.", start_time.elapsed().unwrap().as_secs());
+    println!("Log file took {} milliseconds to parse.", start_time.elapsed().unwrap().as_millis());
 
     Ok(())
 }
@@ -189,7 +194,7 @@ fn round_decimal(x: f64) -> f64 {
 
 
 pub struct Config {
-    pub query: String,
+    pub outfile: String,
     pub filename: String,
     pub case_sensitive: bool,
 }
@@ -200,12 +205,12 @@ impl Config {
             return Err("not enough arguments");
         }
 
-        let query = args[1].clone();
+        let outfile = args[1].clone();
         let filename = args[2].clone();
 
         let case_sensitive = env::var("CASE_INSENSITIVE").is_err();
 
-        Ok(Config { query, filename, case_sensitive })
+        Ok(Config { outfile, filename, case_sensitive })
     }
 }
 
