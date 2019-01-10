@@ -58,13 +58,8 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
 
     let reader = maxminddb::Reader::open_readfile("/usr/local/share/GeoIP/GeoLite2-City.mmdb").unwrap();
 
-
-    // let mut loc_map: HashMap<_, i64> = HashMap::new();
-    // let mut geo_thing: HashMap<Vec<f32>, i32> = HashMap::new();
-
     let mut lat_long_hash: HashMap<String, u32> = HashMap::new();
     let mut ip_hash: HashMap<String, String> = HashMap::new();
-
 
     let mut lines_parse_count: u32 = 0;
     let mut db_lookups_count: u32 = 0;
@@ -129,10 +124,7 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
                     None => eprintln!("ip not found")
                 }
             }
-
         }
-        // println!("{}", loc);
-
     }
 
     let mut output: String = String::new();
@@ -160,21 +152,6 @@ pub fn run (config: Config) -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
-//
-// // #[derive(PartialEq, Eq, Hash)]
-// struct LatLong {
-//     lat: String,
-//     long: String
-// }
-
-// struct LatLong(str, f64);
-
-
-// impl Hash for LatLong {
-//     fn hash<H>(&self, state: &mut H) where H: Hasher {
-//         state.write_u16(4);
-//     }
-// }
 
 pub enum CoordData {
     Longitude(f32),
@@ -194,8 +171,9 @@ fn round_decimal(x: f64) -> f64 {
 
 
 pub struct Config {
-    pub outfile: String,
+    pub date: String,
     pub filename: String,
+    pub outfile: String,
     pub case_sensitive: bool,
 }
 
@@ -205,18 +183,20 @@ impl Config {
             return Err("not enough arguments");
         }
 
-        let outfile = args[1].clone();
+        // the first args is the name of the command itself
+        let date = args[1].clone();
         let filename = args[2].clone();
+        let outfile = args[3].clone();
+
 
         let case_sensitive = env::var("CASE_INSENSITIVE").is_err();
 
-        Ok(Config { outfile, filename, case_sensitive })
+        Ok(Config { date, filename, outfile, case_sensitive })
     }
 }
 
 
 fn lookup<'a>(ip_query: &str, reader: &maxminddb::Reader<Vec<u8>>) -> Option<maxminddb::geoip2::model::Location> {
-   // let reader = maxminddb::Reader::open_readfile("/usr/local/share/GeoIP/GeoLite2-City.mmdb").unwrap();
    // let ip: IpAddr = FromStr::from_str("89.160.20.128").unwrap();
    // let ip: IpAddr = FromStr::from_str("67.181.158.177").unwrap();
 
@@ -231,23 +211,6 @@ fn lookup<'a>(ip_query: &str, reader: &maxminddb::Reader<Vec<u8>>) -> Option<max
            None
        }
    }
-
-
-   // let ip = ip_result.unwrap_or_else(|err| {
-        // return None;
-   // });
-
-   // let city: geoip2::City = reader.lookup(ip.unwrap()).unwrap();
-
-   // return city.location;
-
-
-   // let location: geoip2::model::Location = city.location.unwrap();
-   // println!("{:?}", location);
-
-   // println!("{:?}", city);
-
-   // return city.location;
 }
 
 fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {

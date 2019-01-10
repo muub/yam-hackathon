@@ -21,6 +21,7 @@ fn main() {
 
     println!("{:?}", args);
 
+    println!("Processing for Date: {}", config.date);
     println!("Outputing to {}", config.outfile);
     println!("In file {}", config.filename);
 
