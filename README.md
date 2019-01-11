@@ -16,3 +16,8 @@ cargo build --release
 ```
 
 The format is `smelt "Date String" input_file_path output_file_path`
+
+The log files can be upwards of 166 GB on disk so it's best to preprocess them to get the file size down.
+For the hackathon we ran `rg "/api/members/cart" > api-members-cart.raw` on a days worth of logs.
+
+The tool is called `smelt` because it turns raw logs into beautiful rusty nuggets of knowledge.
